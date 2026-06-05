@@ -3,12 +3,18 @@ import OpenAI from 'openai';
 import { buildSystemPrompt } from '@/lib/scenarios';
 import { Settings } from '@/lib/types';
 
-const ollama = new OpenAI({
-  apiKey: 'ollama',
-  baseURL: 'http://localhost:11434/v1',
-});
+// Supports both Groq (deployed) and Ollama (local). Set GROQ_API_KEY in production.
+const isGroq = !!process.env.GROQ_API_KEY;
 
-const MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
+const client = new OpenAI(
+  isGroq
+    ? { apiKey: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }
+    : { apiKey: 'ollama', baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1' }
+);
+
+const MODEL = isGroq
+  ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
+  : (process.env.OLLAMA_MODEL || 'llama3.2');
 
 interface ChatRequestMessage {
   role: 'user' | 'assistant';
@@ -45,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildSystemPrompt(scenario, settings);
 
-    const response = await ollama.chat.completions.create({
+    const response = await client.chat.completions.create({
       model: MODEL,
       max_tokens: 512,
       messages: [
@@ -61,7 +67,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Chat API error:', error);
     return NextResponse.json(
-      { error: 'Failed to get AI response. Make sure Ollama is running: ollama serve' },
+      { error: isGroq ? 'Failed to get AI response. Check your GROQ_API_KEY.' : 'Failed to get AI response. Make sure Ollama is running: ollama serve' },
       { status: 500 }
     );
   }

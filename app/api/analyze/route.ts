@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { Settings, ChatMessage, SessionAnalysis } from '@/lib/types';
 
-const ollama = new OpenAI({
-  apiKey: 'ollama',
-  baseURL: 'http://localhost:11434/v1',
-});
+const isGroq = !!process.env.GROQ_API_KEY;
 
-const MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
+const client = new OpenAI(
+  isGroq
+    ? { apiKey: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' }
+    : { apiKey: 'ollama', baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1' }
+);
+
+const MODEL = isGroq
+  ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
+  : (process.env.OLLAMA_MODEL || 'llama3.2');
 
 interface AnalyzeRequest {
   messages: ChatMessage[];
@@ -55,7 +60,7 @@ Analyze this and respond with ONLY a valid JSON object in this exact format:
 Scoring: Opening/rapport (0-20), Discovery (0-20), Value prop (0-20), Objection handling (0-20), Closing (0-20).
 Be honest and specific. Return ONLY the JSON, no other text.`;
 
-    const response = await ollama.chat.completions.create({
+    const response = await client.chat.completions.create({
       model: MODEL,
       max_tokens: 1024,
       messages: [{ role: 'user', content: analysisPrompt }],
@@ -86,7 +91,7 @@ Be honest and specific. Return ONLY the JSON, no other text.`;
   } catch (error) {
     console.error('Analyze API error:', error);
     return NextResponse.json(
-      { error: 'Failed to analyze session. Make sure Ollama is running: ollama serve' },
+      { error: 'Failed to analyze session. Please try again.' },
       { status: 500 }
     );
   }
