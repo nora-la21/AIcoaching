@@ -7,6 +7,14 @@ export interface Scenario {
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
 }
 
+export interface Framework {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  coachingInstructions: string;
+}
+
 export const SCENARIOS: Scenario[] = [
   {
     id: 'cold-call',
@@ -58,19 +66,120 @@ export const SCENARIOS: Scenario[] = [
   },
 ];
 
+export const FRAMEWORKS: Framework[] = [
+  {
+    id: 'none',
+    name: 'No Framework',
+    shortName: 'General',
+    description: 'General sales best practices',
+    coachingInstructions: 'Coach on general sales fundamentals: active listening, clear value proposition, handling objections, and moving toward commitment.',
+  },
+  {
+    id: 'spin',
+    name: 'SPIN Selling',
+    shortName: 'SPIN',
+    description: 'Situation → Problem → Implication → Need-payoff',
+    coachingInstructions: `Coach on the SPIN Selling methodology by Neil Rackham:
+- SITUATION questions: gather context (ask sparingly, don't interrogate)
+- PROBLEM questions: uncover explicit pain points and challenges
+- IMPLICATION questions: explore consequences of the problem (this is the most powerful — most reps skip it)
+- NEED-PAYOFF questions: get the prospect to articulate the value of solving the problem themselves
+Flag when the rep jumps to pitching before establishing Implications. Flag missing Need-payoff questions.`,
+  },
+  {
+    id: 'meddic',
+    name: 'MEDDIC',
+    shortName: 'MEDDIC',
+    description: 'Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion',
+    coachingInstructions: `Coach on the MEDDIC qualification framework:
+- METRICS: Has the rep quantified the business impact? (e.g., "How much does this cost you per month?")
+- ECONOMIC BUYER: Has the rep identified who controls the budget and has final sign-off?
+- DECISION CRITERIA: Does the rep know what criteria will be used to evaluate solutions?
+- DECISION PROCESS: Does the rep understand the steps, timeline, and stakeholders in the decision?
+- IDENTIFY PAIN: Has the rep uncovered the prospect's core pain with emotional weight?
+- CHAMPION: Is someone inside the org actively advocating for this solution?
+Flag any MEDDIC element the rep hasn't addressed yet.`,
+  },
+  {
+    id: 'challenger',
+    name: 'Challenger Sale',
+    shortName: 'Challenger',
+    description: 'Teach · Tailor · Take Control',
+    coachingInstructions: `Coach on the Challenger Sale methodology by Matthew Dixon & Brent Adamson:
+- TEACH: Does the rep bring a unique insight or reframe how the prospect thinks about their problem? (Not product features — business insight)
+- TAILOR: Is the message tailored to what matters to THIS specific person in THEIR role?
+- TAKE CONTROL: Is the rep assertive and confident? Do they push back constructively rather than capitulating to every objection?
+- Commercial Teaching: The rep should lead with insight that creates constructive tension, not lead with questions.
+Flag when the rep is too passive, agrees too quickly with objections, or pitches features instead of teaching insights.`,
+  },
+  {
+    id: 'bant',
+    name: 'BANT',
+    shortName: 'BANT',
+    description: 'Budget · Authority · Need · Timeline',
+    coachingInstructions: `Coach on the BANT qualification framework:
+- BUDGET: Has the rep confirmed whether budget exists and its approximate size?
+- AUTHORITY: Has the rep identified the decision-maker and their authority level?
+- NEED: Has the rep clearly validated a specific, urgent business need?
+- TIMELINE: Has the rep established a realistic timeline for decision and implementation?
+Flag when the rep moves forward without qualifying all four elements. Remind them that selling to someone without budget or authority wastes everyone's time.`,
+  },
+  {
+    id: 'sandler',
+    name: 'Sandler Selling',
+    shortName: 'Sandler',
+    description: 'Pain-first · No free consulting · Mutual qualification',
+    coachingInstructions: `Coach on the Sandler Selling System by David Sandler:
+- PAIN FIRST: The rep should uncover pain at three levels — surface problem, business impact, personal impact
+- NO FREE CONSULTING: Flag when the rep gives away solutions or advice without commitment from the prospect
+- REVERSE THE PRESSURE: When the prospect pushes back, the rep should use reverse questions ("That's fair — maybe this isn't the right fit?")
+- UPFRONT CONTRACTS: The rep should set clear agendas and get micro-commitments at each stage
+- QUALIFY HARD: The rep should be willing to disqualify prospects — not everyone is a fit
+Flag when the rep is "pitching" or being too eager. In Sandler, the rep qualifies as much as the prospect does.`,
+  },
+  {
+    id: 'solution',
+    name: 'Solution Selling',
+    shortName: 'Solution',
+    description: 'Diagnose pain → prescribe solution → prove value',
+    coachingInstructions: `Coach on Solution Selling by Michael Bosworth:
+- DIAGNOSE BEFORE PRESCRIBING: The rep must fully understand the pain before mentioning the solution
+- PAIN CHAIN: Help the rep trace pain from the frontline user up to executive business impact
+- SOLUTION VISION: Guide the prospect to envision what success looks like with the solution in place
+- PROOF OF VALUE: The rep should tie every feature to a specific business outcome with numbers where possible
+- SPONSOR LETTER: The rep should aim to document agreed-upon pain, solution, and value with the internal champion
+Flag when the rep pitches features without tying them to the prospect's specific diagnosed pain.`,
+  },
+];
+
 export function getScenarioById(id: string): Scenario | undefined {
   return SCENARIOS.find((s) => s.id === id);
 }
 
-export function buildSystemPrompt(scenario: string, settings: {
-  userName: string;
-  companyName: string;
-  productDescription: string;
-  targetCustomer: string;
-  valueProposition: string;
-  commonObjections: string[];
-}): string {
+export function getFrameworkById(id: string): Framework | undefined {
+  return FRAMEWORKS.find((f) => f.id === id);
+}
+
+export function buildSystemPrompt(
+  scenario: string,
+  settings: {
+    userName: string;
+    companyName: string;
+    productDescription: string;
+    targetCustomer: string;
+    valueProposition: string;
+    commonObjections: string[];
+  },
+  frameworkId?: string
+): string {
   const objectionsList = settings.commonObjections.join(', ');
+  const framework = frameworkId ? getFrameworkById(frameworkId) : null;
+
+  const frameworkSection = framework && framework.id !== 'none'
+    ? `\n\nSALES FRAMEWORK BEING PRACTICED: ${framework.name}
+${framework.coachingInstructions}
+Your coaching tips should specifically reference ${framework.shortName} principles by name and tell the salesperson which step/element they're on or missing.`
+    : '';
 
   return `You are a realistic sales prospect in a ${scenario} scenario.
 The salesperson (${settings.userName}) sells ${settings.productDescription} from ${settings.companyName}.
@@ -88,7 +197,7 @@ Scenario-specific behavior:
 - negotiation: Push hard on price. Ask for discounts, extended terms, extra features. Make the rep defend every dollar.
 
 Keep responses 2-4 sentences. Stay fully in character. Never break the fourth wall. Be a realistic human, not a chatbot.
-
+${frameworkSection}
 After EVERY response, on a completely new line, output a coaching tip starting EXACTLY with "COACHING_TIP:" followed by one specific, actionable, concise tip for the salesperson about what they just said or did. This tip should be 1-2 sentences and directly reference their last message. Format it like:
 COACHING_TIP: [your tip here]`;
 }

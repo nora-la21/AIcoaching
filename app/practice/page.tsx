@@ -15,13 +15,14 @@ import {
   VolumeX,
   Sparkles,
   User,
+  BookOpen,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import MessageBubble from '@/components/MessageBubble';
 import ScenarioCard from '@/components/ScenarioCard';
 import AnalysisModal from '@/components/AnalysisModal';
 import GenerateScenarioModal from '@/components/GenerateScenarioModal';
-import { SCENARIOS, getScenarioById } from '@/lib/scenarios';
+import { SCENARIOS, FRAMEWORKS, getScenarioById, getFrameworkById } from '@/lib/scenarios';
 import { getSettings, saveSession } from '@/lib/storage';
 import { ChatMessage, Session, SessionAnalysis, CustomProspect } from '@/lib/types';
 
@@ -69,6 +70,9 @@ function PracticeContent() {
   // Custom prospect state
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [customProspect, setCustomProspect] = useState<CustomProspect | null>(null);
+
+  // Framework state
+  const [selectedFramework, setSelectedFramework] = useState('none');
 
   // Voice state
   const [voiceMode, setVoiceMode] = useState(false);
@@ -305,6 +309,7 @@ function PracticeContent() {
           scenario: selectedScenario,
           settings,
           customProspectProfile: customProspect?.generatedProfile,
+          framework: selectedFramework,
         }),
       });
 
@@ -361,7 +366,7 @@ function PracticeContent() {
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: cleanMessages, scenario: selectedScenario, settings }),
+        body: JSON.stringify({ messages: cleanMessages, scenario: selectedScenario, settings, framework: selectedFramework }),
       });
 
       if (!res.ok) {
@@ -480,8 +485,37 @@ function PracticeContent() {
               ))}
             </div>
 
+            {/* Framework selector */}
+            <div className="mt-8 max-w-4xl">
+              <p className="text-xs font-medium mb-3 flex items-center gap-2" style={{ color: '#94a3b8' }}>
+                <BookOpen size={13} /> Sales Framework
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {FRAMEWORKS.map((fw) => (
+                  <button
+                    key={fw.id}
+                    onClick={() => setSelectedFramework(fw.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    style={{
+                      backgroundColor: selectedFramework === fw.id ? 'rgba(99,102,241,0.15)' : '#16161f',
+                      border: `1px solid ${selectedFramework === fw.id ? '#6366f1' : '#2a2a3c'}`,
+                      color: selectedFramework === fw.id ? '#6366f1' : '#64748b',
+                    }}
+                    title={fw.description}
+                  >
+                    {fw.shortName}
+                  </button>
+                ))}
+              </div>
+              {selectedFramework !== 'none' && (
+                <p className="text-xs mt-2" style={{ color: '#64748b' }}>
+                  {FRAMEWORKS.find(f => f.id === selectedFramework)?.description}
+                </p>
+              )}
+            </div>
+
             {selectedScenario && (
-              <div className="mt-8 max-w-4xl flex items-center gap-4">
+              <div className="mt-6 max-w-4xl flex items-center gap-4">
                 <button
                   onClick={startSession}
                   disabled={isLoading}
@@ -774,7 +808,7 @@ function PracticeContent() {
                 </div>
               </div>
             </div>
-            <AnalysisModal analysis={analysis} scenarioLabel={scenarioObj?.label || selectedScenario} onClose={handleCloseModal} />
+            <AnalysisModal analysis={analysis} scenarioLabel={scenarioObj?.label || selectedScenario} frameworkName={getFrameworkById(selectedFramework)?.name} onClose={handleCloseModal} />
           </>
         )}
       </main>

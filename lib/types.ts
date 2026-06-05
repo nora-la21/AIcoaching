@@ -12,9 +12,12 @@ export interface SessionAnalysis {
   score: number;
   strengths: string[];
   improvements: string[];
+  mistakes: MistakeCorrection[];
   talkRatio: number;
   summary: string;
   followUpEmail: string;
+  frameworkScore?: number;
+  frameworkFeedback?: string;
 }
 
 export interface Session {
@@ -33,6 +36,12 @@ export interface Script {
   content: string;
   tags: string[];
   createdAt: string;
+}
+
+export interface MistakeCorrection {
+  whatWasSaid: string;
+  whyItMissed: string;
+  whatToSayInstead: string;
 }
 
 export interface CustomProspect {
