@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Settings, ChatMessage, SessionAnalysis } from '@/lib/types';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 interface AnalyzeRequest {
   messages: ChatMessage[];
@@ -25,14 +23,8 @@ export async function POST(req: NextRequest) {
     }
 
     const userMessages = messages.filter((m) => m.role === 'user');
-    const aiMessages = messages.filter((m) => m.role === 'assistant');
-
-    const totalWords = messages.reduce((acc, m) => {
-      return acc + m.content.split(/\s+/).length;
-    }, 0);
-    const userWords = userMessages.reduce((acc, m) => {
-      return acc + m.content.split(/\s+/).length;
-    }, 0);
+    const totalWords = messages.reduce((acc, m) => acc + m.content.split(/\s+/).length, 0);
+    const userWords = userMessages.reduce((acc, m) => acc + m.content.split(/\s+/).length, 0);
     const estimatedTalkRatio = totalWords > 0 ? Math.round((userWords / totalWords) * 100) : 50;
 
     const conversationText = messages
@@ -66,25 +58,14 @@ Scoring criteria:
 - Objection handling (0-20 pts)
 - Closing and next steps (0-20 pts)
 
-Be honest and specific. If the performance was poor, reflect that in the score. Provide actionable, specific feedback.
+Be honest and specific. Provide actionable, specific feedback.
 
 Return ONLY the JSON object, no other text.`;
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'user',
-          content: analysisPrompt,
-        },
-      ],
-    });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const result = await model.generateContent(analysisPrompt);
+    const rawText = result.response.text();
 
-    const rawText =
-      response.content[0].type === 'text' ? response.content[0].text : '{}';
-
-    // Extract JSON from response
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('No valid JSON in response');
@@ -92,7 +73,6 @@ Return ONLY the JSON object, no other text.`;
 
     const analysis: SessionAnalysis = JSON.parse(jsonMatch[0]);
 
-    // Validate and sanitize
     const sanitized: SessionAnalysis = {
       score: Math.max(0, Math.min(100, Number(analysis.score) || 50)),
       strengths: Array.isArray(analysis.strengths)
@@ -103,20 +83,12 @@ Return ONLY the JSON object, no other text.`;
         : ['Practice more discovery questions', 'Work on handling objections', 'Be more concise'],
       talkRatio: estimatedTalkRatio,
       summary: analysis.summary || 'Good practice session. Keep working on your skills.',
-      followUpEmail: analysis.followUpEmail || `Subject: Great speaking with you today\n\nHi,\n\nThank you for your time today. I enjoyed learning more about your needs.\n\nI'd love to schedule a follow-up to discuss how ${settings.companyName} can help.\n\nBest regards,\n${settings.userName}`,
+      followUpEmail: analysis.followUpEmail || `Subject: Great speaking with you today\n\nHi,\n\nThank you for your time today.\n\nBest regards,\n${settings.userName}`,
     };
 
     return NextResponse.json(sanitized);
   } catch (error) {
     console.error('Analyze API error:', error);
-
-    if (error instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `API error: ${error.message}` },
-        { status: error.status || 500 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Failed to analyze session. Please try again.' },
       { status: 500 }

@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { buildSystemPrompt } from '@/lib/scenarios';
 import { Settings } from '@/lib/types';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 interface ChatRequestMessage {
   role: 'user' | 'assistant';
@@ -45,36 +43,28 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt = buildSystemPrompt(scenario, settings);
-
-    // Convert messages to Anthropic format
-    const anthropicMessages = messages.map((msg) => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content,
-    }));
-
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: anthropicMessages,
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      systemInstruction: systemPrompt,
     });
 
-    const rawText =
-      response.content[0].type === 'text' ? response.content[0].text : '';
+    // Build Gemini history from all messages except the last (which is the current user turn)
+    const history = messages.slice(0, -1).map((msg) => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    }));
+
+    const chat = model.startChat({ history });
+
+    const lastMessage = messages[messages.length - 1];
+    const result = await chat.sendMessage(lastMessage.content);
+    const rawText = result.response.text();
 
     const { reply, coachingTip } = parseCoachingTip(rawText);
 
     return NextResponse.json({ reply, coachingTip });
   } catch (error) {
     console.error('Chat API error:', error);
-
-    if (error instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `API error: ${error.message}` },
-        { status: error.status || 500 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Failed to get AI response. Please try again.' },
       { status: 500 }
