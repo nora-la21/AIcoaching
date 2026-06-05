@@ -170,10 +170,18 @@ export function buildSystemPrompt(
     valueProposition: string;
     commonObjections: string[];
   },
-  frameworkId?: string
+  frameworkId?: string,
+  generatedObjections?: string[]
 ): string {
-  const objectionsList = settings.commonObjections.join(', ');
   const framework = frameworkId ? getFrameworkById(frameworkId) : null;
+
+  // Use AI-generated objections if available, fall back to settings, then instruct AI to derive them
+  const objectionsSection = generatedObjections && generatedObjections.length > 0
+    ? `Objections to raise during this call (weave them in naturally, don't list them all at once):
+${generatedObjections.map((o, i) => `${i + 1}. ${o}`).join('\n')}`
+    : settings.commonObjections.length > 0
+    ? `Raise objections relevant to this product and prospect. Some likely ones: ${settings.commonObjections.join(', ')}. Add others that feel natural given the product and your role.`
+    : `Raise 3-5 realistic objections a ${settings.targetCustomer} would naturally have about "${settings.productDescription}" — think about price, ROI, implementation effort, internal buy-in, competitors, or timing. Weave them in naturally.`;
 
   const frameworkSection = framework && framework.id !== 'none'
     ? `\n\nSALES FRAMEWORK BEING PRACTICED: ${framework.name}
@@ -188,11 +196,13 @@ Their value proposition is: ${settings.valueProposition}.
 
 Act as a realistic, believable prospect. Be authentic — sometimes push back, ask hard questions, raise objections. Do NOT be overly cooperative or easy.
 
+${objectionsSection}
+
 Scenario-specific behavior:
 - cold-call: You're busy and didn't expect this call. Start skeptical. "I only have 2 minutes." Gradually warm up only if the pitch is compelling.
 - discovery: You're open to talking but cautious. Share pain points slowly, ask clarifying questions, make the rep work for information.
 - demo: You're interested but critical. Ask detailed questions, probe edge cases, compare to competitors.
-- objection: Raise multiple objections including: ${objectionsList}. Be persistent, don't fold immediately.
+- objection: Raise your objections persistently. Don't fold on the first response — push back 2-3 times before softening.
 - closing: You're warm but have a few final hesitations — timing, budget approval, competitor comparison. Need one more push.
 - negotiation: Push hard on price. Ask for discounts, extended terms, extra features. Make the rep defend every dollar.
 

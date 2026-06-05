@@ -25,6 +25,7 @@ import GenerateScenarioModal from '@/components/GenerateScenarioModal';
 import { SCENARIOS, FRAMEWORKS, getScenarioById, getFrameworkById } from '@/lib/scenarios';
 import { getSettings, saveSession } from '@/lib/storage';
 import { ChatMessage, Session, SessionAnalysis, CustomProspect } from '@/lib/types';
+import { GeneratedObjection } from '@/app/api/generate-objections/route';
 
 type Phase = 'select' | 'chatting' | 'analyzing' | 'done';
 type VoiceStatus = 'idle' | 'listening' | 'processing' | 'speaking';
@@ -73,6 +74,10 @@ function PracticeContent() {
 
   // Framework state
   const [selectedFramework, setSelectedFramework] = useState('none');
+
+  // Generated objections
+  const [generatedObjections, setGeneratedObjections] = useState<GeneratedObjection[]>([]);
+  const generatedObjectionsRef = useRef<GeneratedObjection[]>([]);
 
   // Voice state
   const [voiceMode, setVoiceMode] = useState(false);
@@ -235,7 +240,7 @@ function PracticeContent() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages, scenario: selectedScenario, settings, customProspectProfile: customProspect?.generatedProfile }),
+        body: JSON.stringify({ messages: apiMessages, scenario: selectedScenario, settings, customProspectProfile: customProspect?.generatedProfile, framework: selectedFramework, generatedObjections: generatedObjectionsRef.current.map(o => o.objection) }),
       });
 
       if (!res.ok) {
@@ -294,12 +299,34 @@ function PracticeContent() {
     setMessages([]);
     setCoachingTip('');
     setTipHistory([]);
+    setGeneratedObjections([]);
+    generatedObjectionsRef.current = [];
     setPhase('chatting');
     const now = Date.now();
     setStartTime(now);
     setElapsed(0);
 
     setIsLoading(true);
+
+    // Fetch objections and opening message in parallel
+    // Fire and forget — updates state when ready, doesn't block the opening message
+    void fetch('/api/generate-objections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        settings,
+        scenario: selectedScenario,
+        prospectTitle: customProspect?.title,
+        prospectIndustry: customProspect?.industry,
+        difficulty: customProspect?.difficulty || 'medium',
+      }),
+    }).then(r => r.json()).then(data => {
+      if (data.objections) {
+        setGeneratedObjections(data.objections);
+        generatedObjectionsRef.current = data.objections;
+      }
+    }).catch(() => { /* non-fatal */ });
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -310,6 +337,7 @@ function PracticeContent() {
           settings,
           customProspectProfile: customProspect?.generatedProfile,
           framework: selectedFramework,
+          generatedObjections: generatedObjectionsRef.current.map(o => o.objection),
         }),
       });
 
@@ -762,6 +790,47 @@ function PracticeContent() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                {/* Expected objections — shown before first coaching tip arrives */}
+                {generatedObjections.length > 0 && (
+                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(99,102,241,0.25)' }}>
+                    <div className="px-3 py-2" style={{ backgroundColor: 'rgba(99,102,241,0.1)' }}>
+                      <p className="text-xs font-semibold" style={{ color: '#6366f1' }}>⚡ Expect these objections</p>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: '#2a2a3c' }}>
+                      {generatedObjections.map((obj, i) => (
+                        <div key={i} className="px-3 py-2.5" style={{ backgroundColor: '#0d0d14' }}>
+                          <div className="flex items-start gap-2">
+                            <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 capitalize"
+                              style={{
+                                backgroundColor:
+                                  obj.category === 'price' ? 'rgba(239,68,68,0.15)' :
+                                  obj.category === 'competition' ? 'rgba(245,158,11,0.15)' :
+                                  obj.category === 'timing' ? 'rgba(99,102,241,0.15)' :
+                                  'rgba(100,116,139,0.15)',
+                                color:
+                                  obj.category === 'price' ? '#ef4444' :
+                                  obj.category === 'competition' ? '#f59e0b' :
+                                  obj.category === 'timing' ? '#6366f1' :
+                                  '#64748b',
+                              }}
+                            >
+                              {obj.category}
+                            </span>
+                            <div>
+                              <p className="text-xs leading-relaxed" style={{ color: '#94a3b8' }}>
+                                &ldquo;{obj.objection}&rdquo;
+                              </p>
+                              <p className="text-xs mt-1 leading-relaxed" style={{ color: '#64748b' }}>
+                                → {obj.handleTip}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {coachingTip ? (
                   <>
                     <div className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
@@ -774,14 +843,14 @@ function PracticeContent() {
                       </div>
                     ))}
                   </>
-                ) : (
+                ) : generatedObjections.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full py-8">
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
                       <Lightbulb size={20} style={{ color: '#f59e0b' }} />
                     </div>
                     <p className="text-xs text-center" style={{ color: '#64748b' }}>Start the conversation to receive live coaching tips</p>
                   </div>
-                )}
+                ) : null}
               </div>
 
               <div className="p-4 border-t" style={{ borderColor: '#2a2a3c' }}>
