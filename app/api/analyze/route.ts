@@ -62,7 +62,7 @@ Be honest and specific. Provide actionable, specific feedback.
 
 Return ONLY the JSON object, no other text.`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await model.generateContent(analysisPrompt);
     const rawText = result.response.text();
 
