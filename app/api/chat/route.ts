@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { buildSystemPrompt } from '@/lib/scenarios';
 import { Settings } from '@/lib/types';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY || '',
+  baseURL: 'https://api.groq.com/openai/v1',
+});
 
 interface ChatRequestMessage {
   role: 'user' | 'assistant';
@@ -19,15 +22,11 @@ interface ChatRequest {
 function parseCoachingTip(text: string): { reply: string; coachingTip: string } {
   const tipMarker = 'COACHING_TIP:';
   const tipIndex = text.lastIndexOf(tipMarker);
-
-  if (tipIndex === -1) {
-    return { reply: text.trim(), coachingTip: '' };
-  }
-
-  const reply = text.substring(0, tipIndex).trim();
-  const coachingTip = text.substring(tipIndex + tipMarker.length).trim();
-
-  return { reply, coachingTip };
+  if (tipIndex === -1) return { reply: text.trim(), coachingTip: '' };
+  return {
+    reply: text.substring(0, tipIndex).trim(),
+    coachingTip: text.substring(tipIndex + tipMarker.length).trim(),
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -43,23 +42,17 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt = buildSystemPrompt(scenario, settings);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: systemPrompt,
+
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 512,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+      ],
     });
 
-    // Build Gemini history from all messages except the last (which is the current user turn)
-    const history = messages.slice(0, -1).map((msg) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }],
-    }));
-
-    const chat = model.startChat({ history });
-
-    const lastMessage = messages[messages.length - 1];
-    const result = await chat.sendMessage(lastMessage.content);
-    const rawText = result.response.text();
-
+    const rawText = response.choices[0]?.message?.content || '';
     const { reply, coachingTip } = parseCoachingTip(rawText);
 
     return NextResponse.json({ reply, coachingTip });

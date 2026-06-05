@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { Settings, ChatMessage, SessionAnalysis } from '@/lib/types';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY || '',
+  baseURL: 'https://api.groq.com/openai/v1',
+});
 
 interface AnalyzeRequest {
   messages: ChatMessage[];
@@ -16,10 +19,7 @@ export async function POST(req: NextRequest) {
     const { messages, scenario, settings } = body;
 
     if (!messages || !scenario || !settings) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const userMessages = messages.filter((m) => m.role === 'user');
@@ -37,39 +37,31 @@ Scenario: ${scenario}
 Salesperson: ${settings.userName} from ${settings.companyName}
 Product: ${settings.productDescription}
 
-Here is the full conversation:
-
+Conversation:
 ${conversationText}
 
-Analyze this sales conversation and provide a JSON response with exactly this structure:
+Analyze this and respond with ONLY a valid JSON object in this exact format:
 {
-  "score": <number 0-100 representing overall performance>,
-  "strengths": [<3 specific strengths demonstrated>, <strength 2>, <strength 3>],
-  "improvements": [<3 specific areas to improve>, <improvement 2>, <improvement 3>],
+  "score": <number 0-100>,
+  "strengths": ["strength 1", "strength 2", "strength 3"],
+  "improvements": ["improvement 1", "improvement 2", "improvement 3"],
   "talkRatio": ${estimatedTalkRatio},
-  "summary": "<2-3 sentence summary of the call performance>",
-  "followUpEmail": "<a professional follow-up email the salesperson could send after this call, with Subject line, greeting, body, and signature. Use \\n for line breaks.>"
+  "summary": "2-3 sentence summary of performance",
+  "followUpEmail": "Subject: ...\\n\\nHi,\\n\\n...\\n\\nBest regards,\\n${settings.userName}"
 }
 
-Scoring criteria:
-- Opening and rapport building (0-20 pts)
-- Discovery and questioning (0-20 pts)
-- Value proposition delivery (0-20 pts)
-- Objection handling (0-20 pts)
-- Closing and next steps (0-20 pts)
+Scoring: Opening/rapport (0-20), Discovery (0-20), Value prop (0-20), Objection handling (0-20), Closing (0-20).
+Be honest and specific. Return ONLY the JSON, no other text.`;
 
-Be honest and specific. Provide actionable, specific feedback.
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: analysisPrompt }],
+    });
 
-Return ONLY the JSON object, no other text.`;
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(analysisPrompt);
-    const rawText = result.response.text();
-
+    const rawText = response.choices[0]?.message?.content || '{}';
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No valid JSON in response');
-    }
+    if (!jsonMatch) throw new Error('No valid JSON in response');
 
     const analysis: SessionAnalysis = JSON.parse(jsonMatch[0]);
 
@@ -80,10 +72,12 @@ Return ONLY the JSON object, no other text.`;
         : ['Engaged with the prospect', 'Communicated clearly', 'Maintained professionalism'],
       improvements: Array.isArray(analysis.improvements)
         ? analysis.improvements.slice(0, 3)
-        : ['Practice more discovery questions', 'Work on handling objections', 'Be more concise'],
+        : ['Ask more discovery questions', 'Handle objections more confidently', 'Be more concise'],
       talkRatio: estimatedTalkRatio,
       summary: analysis.summary || 'Good practice session. Keep working on your skills.',
-      followUpEmail: analysis.followUpEmail || `Subject: Great speaking with you today\n\nHi,\n\nThank you for your time today.\n\nBest regards,\n${settings.userName}`,
+      followUpEmail:
+        analysis.followUpEmail ||
+        `Subject: Great speaking with you today\n\nHi,\n\nThank you for your time.\n\nBest regards,\n${settings.userName}`,
     };
 
     return NextResponse.json(sanitized);
