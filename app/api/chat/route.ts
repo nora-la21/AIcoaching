@@ -25,6 +25,7 @@ interface ChatRequest {
   messages: ChatRequestMessage[];
   scenario: string;
   settings: Settings;
+  customProspectProfile?: string;
 }
 
 function parseCoachingTip(text: string): { reply: string; coachingTip: string } {
@@ -40,7 +41,7 @@ function parseCoachingTip(text: string): { reply: string; coachingTip: string } 
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequest = await req.json();
-    const { messages, scenario, settings } = body;
+    const { messages, scenario, settings, customProspectProfile } = body;
 
     if (!messages || !scenario || !settings) {
       return NextResponse.json(
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const systemPrompt = buildSystemPrompt(scenario, settings);
+    const systemPrompt = customProspectProfile || buildSystemPrompt(scenario, settings);
 
     const response = await client.chat.completions.create({
       model: MODEL,

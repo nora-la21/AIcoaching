@@ -35,6 +35,16 @@ export interface Script {
   createdAt: string;
 }
 
+export interface CustomProspect {
+  name: string;
+  title: string;
+  company: string;
+  industry: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  description: string;
+  generatedProfile: string;
+}
+
 export interface Settings {
   userName: string;
   companyName: string;

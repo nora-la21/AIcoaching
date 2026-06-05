@@ -129,6 +129,19 @@ button {
   animation-delay: 0.4s;
 }
 
+/* Mic pulse animation */
+@keyframes micPulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  70% { box-shadow: 0 0 0 22px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Slide up toast */
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 /* Prose content in messages */
 .message-content p {
   margin-bottom: 0.5rem;
