@@ -3,10 +3,12 @@ import OpenAI from 'openai';
 import { buildSystemPrompt } from '@/lib/scenarios';
 import { Settings } from '@/lib/types';
 
-const groq = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY || '',
-  baseURL: 'https://api.groq.com/openai/v1',
+const ollama = new OpenAI({
+  apiKey: 'ollama',
+  baseURL: 'http://localhost:11434/v1',
 });
+
+const MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
 
 interface ChatRequestMessage {
   role: 'user' | 'assistant';
@@ -43,8 +45,8 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildSystemPrompt(scenario, settings);
 
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const response = await ollama.chat.completions.create({
+      model: MODEL,
       max_tokens: 512,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Chat API error:', error);
     return NextResponse.json(
-      { error: 'Failed to get AI response. Please try again.' },
+      { error: 'Failed to get AI response. Make sure Ollama is running: ollama serve' },
       { status: 500 }
     );
   }
