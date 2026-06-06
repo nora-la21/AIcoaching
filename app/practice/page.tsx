@@ -580,7 +580,7 @@ function PracticeContent() {
         {(phase === 'chatting' || phase === 'analyzing') && (
           <div className="flex flex-1 h-screen overflow-hidden">
             {/* Chat area */}
-            <div className="flex flex-col" style={{ width: '65%' }}>
+            <div className="flex flex-col overflow-hidden" style={{ width: '65%' }}>
               {/* Chat header */}
               <div
                 className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
@@ -866,7 +866,7 @@ function PracticeContent() {
         {phase === 'done' && analysis && (
           <>
             <div className="flex flex-1 h-screen overflow-hidden opacity-30 pointer-events-none">
-              <div className="flex flex-col" style={{ width: '65%' }}>
+              <div className="flex flex-col overflow-hidden" style={{ width: '65%' }}>
                 <div className="px-6 py-4 border-b" style={{ backgroundColor: '#16161f', borderColor: '#2a2a3c' }}>
                   <h2 className="text-sm font-semibold" style={{ color: '#f1f5f9' }}>{scenarioObj?.label}</h2>
                 </div>
