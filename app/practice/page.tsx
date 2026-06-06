@@ -455,7 +455,7 @@ function PracticeContent() {
     <div className="flex min-h-screen" style={{ backgroundColor: '#0d0d14' }}>
       <Sidebar />
 
-      <main className="flex-1 ml-60 flex flex-col min-h-screen">
+      <main className="flex-1 ml-60 flex flex-col h-screen overflow-hidden">
         {/* ── PHASE: SELECT ─────────────────────────────────────── */}
         {phase === 'select' && (
           <div className="flex-1 p-8">
@@ -578,7 +578,7 @@ function PracticeContent() {
 
         {/* ── PHASE: CHATTING ───────────────────────────────────── */}
         {(phase === 'chatting' || phase === 'analyzing') && (
-          <div className="flex flex-1 h-screen overflow-hidden">
+          <div className="flex flex-1 overflow-hidden">
             {/* Chat area */}
             <div className="flex flex-col overflow-hidden" style={{ width: '65%' }}>
               {/* Chat header */}
