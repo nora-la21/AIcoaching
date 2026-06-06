@@ -165,7 +165,7 @@ function PracticeContent() {
     const recognition = new SR();
     recognition.lang = 'en-US';
     recognition.interimResults = true;
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognitionRef.current = recognition;
 
     recognition.onstart = () => setVoiceStatus('listening');
@@ -203,9 +203,8 @@ function PracticeContent() {
   }, []);
 
   const stopListening = useCallback(() => {
+    // Just stop — onend will read the accumulated transcript and trigger send
     recognitionRef.current?.stop();
-    setVoiceStatus('idle');
-    setLiveTranscript('');
   }, []);
 
   // Flag to trigger send from voice
@@ -446,7 +445,7 @@ function PracticeContent() {
   // Voice status label
   const voiceStatusLabel: Record<VoiceStatus, string> = {
     idle: 'Click mic to speak',
-    listening: 'Listening...',
+    listening: 'Listening... tap mic to send',
     processing: 'Processing...',
     speaking: 'Prospect is speaking...',
   };
