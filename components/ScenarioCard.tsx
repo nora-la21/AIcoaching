@@ -7,6 +7,7 @@ import {
   Shield,
   Target,
   DollarSign,
+  HelpCircle,
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ const ICONS: Record<string, LucideIcon> = {
   Shield,
   Target,
   DollarSign,
+  HelpCircle,
 };
 
 const DIFFICULTY_COLORS: Record<string, string> = {
