@@ -14,6 +14,7 @@ import {
   MessageSquare,
   CheckCircle,
   Layers,
+  Sparkles,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import {
@@ -26,6 +27,7 @@ import {
   setActiveProfileId,
 } from '@/lib/storage';
 import { Settings, SettingsProfile } from '@/lib/types';
+import GenerateProfileModal from '@/components/GenerateProfileModal';
 
 interface InputFieldProps {
   label: string;
@@ -108,6 +110,7 @@ export default function SettingsPage() {
   const [activeProfileId, setActiveProfileIdState] = useState<string | null>(null);
   const [newProfileName, setNewProfileName] = useState('');
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const newProfileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -210,6 +213,23 @@ export default function SettingsPage() {
       setSettings({ ...DEFAULT_SETTINGS, ...next.settings });
       setHasChanges(false);
     }
+  };
+
+  const handleGeneratedProfile = (name: string, generatedSettings: Settings) => {
+    const newProfile: SettingsProfile = {
+      id: `profile-${Date.now()}`,
+      name,
+      settings: generatedSettings,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...profiles, newProfile];
+    saveProfiles(updated);
+    setProfilesState(updated);
+    setActiveProfileId(newProfile.id);
+    setActiveProfileIdState(newProfile.id);
+    setSettings(generatedSettings);
+    setShowGenerateModal(false);
+    setHasChanges(false);
   };
 
   const addObjection = () => {
@@ -362,6 +382,18 @@ export default function SettingsPage() {
                   New Profile
                 </button>
               )}
+
+              {/* Generate with AI */}
+              <button
+                onClick={() => setShowGenerateModal(true)}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all"
+                style={{ backgroundColor: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', color: '#6366f1' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(99,102,241,0.2)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(99,102,241,0.1)'; }}
+              >
+                <Sparkles size={13} />
+                Generate with AI
+              </button>
             </div>
 
             <p className="text-xs mt-3" style={{ color: '#475569' }}>
@@ -618,6 +650,14 @@ export default function SettingsPage() {
           </div>
         </div>
       </main>
+
+      {showGenerateModal && (
+        <GenerateProfileModal
+          currentUserName={settings.userName}
+          onSave={handleGeneratedProfile}
+          onClose={() => setShowGenerateModal(false)}
+        />
+      )}
     </div>
   );
 }
