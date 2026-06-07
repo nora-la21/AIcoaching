@@ -62,3 +62,10 @@ export interface Settings {
   valueProposition: string;
   commonObjections: string[];
 }
+
+export interface SettingsProfile {
+  id: string;
+  name: string;
+  settings: Settings;
+  createdAt: string;
+}

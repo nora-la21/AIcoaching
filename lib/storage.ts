@@ -1,8 +1,10 @@
-import { Session, Script, Settings } from './types';
+import { Session, Script, Settings, SettingsProfile } from './types';
 
 const SESSIONS_KEY = 'ai_coach_sessions';
 const SCRIPTS_KEY = 'ai_coach_scripts';
 const SETTINGS_KEY = 'ai_coach_settings';
+const PROFILES_KEY = 'ai_coach_profiles';
+const ACTIVE_PROFILE_KEY = 'ai_coach_active_profile';
 
 // ─── Sessions ───────────────────────────────────────────────────────────────
 
@@ -80,6 +82,31 @@ export function deleteScript(id: string): void {
   }
 }
 
+// ─── Profiles ────────────────────────────────────────────────────────────────
+
+export function getProfiles(): SettingsProfile[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(PROFILES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function saveProfiles(profiles: SettingsProfile[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+}
+
+export function getActiveProfileId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ACTIVE_PROFILE_KEY);
+}
+
+export function setActiveProfileId(id: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(ACTIVE_PROFILE_KEY, id);
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -100,10 +127,15 @@ export const DEFAULT_SETTINGS: Settings = {
 export function getSettings(): Settings {
   if (typeof window === 'undefined') return DEFAULT_SETTINGS;
   try {
+    const activeId = localStorage.getItem(ACTIVE_PROFILE_KEY);
+    if (activeId) {
+      const profiles = getProfiles();
+      const active = profiles.find((p) => p.id === activeId);
+      if (active) return { ...DEFAULT_SETTINGS, ...active.settings };
+    }
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const stored = JSON.parse(raw);
-    return { ...DEFAULT_SETTINGS, ...stored };
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -112,6 +144,16 @@ export function getSettings(): Settings {
 export function saveSettings(settings: Settings): void {
   if (typeof window === 'undefined') return;
   try {
+    const activeId = localStorage.getItem(ACTIVE_PROFILE_KEY);
+    if (activeId) {
+      const profiles = getProfiles();
+      const idx = profiles.findIndex((p) => p.id === activeId);
+      if (idx !== -1) {
+        profiles[idx] = { ...profiles[idx], settings };
+        localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+        return;
+      }
+    }
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch {
     console.error('Failed to save settings');

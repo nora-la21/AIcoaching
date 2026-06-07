@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Save,
   Plus,
@@ -13,10 +13,19 @@ import {
   Star,
   MessageSquare,
   CheckCircle,
+  Layers,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import { getSettings, saveSettings, DEFAULT_SETTINGS } from '@/lib/storage';
-import { Settings } from '@/lib/types';
+import {
+  getSettings,
+  saveSettings,
+  DEFAULT_SETTINGS,
+  getProfiles,
+  saveProfiles,
+  getActiveProfileId,
+  setActiveProfileId,
+} from '@/lib/storage';
+import { Settings, SettingsProfile } from '@/lib/types';
 
 interface InputFieldProps {
   label: string;
@@ -95,9 +104,45 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
+  const [profiles, setProfilesState] = useState<SettingsProfile[]>([]);
+  const [activeProfileId, setActiveProfileIdState] = useState<string | null>(null);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const newProfileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    setSettings(getSettings());
+    let loaded = getProfiles();
+    let activeId = getActiveProfileId();
+
+    if (loaded.length === 0) {
+      // First time: wrap existing flat settings into a "Default" profile
+      const existing = getSettings();
+      const defaultProfile: SettingsProfile = {
+        id: `profile-${Date.now()}`,
+        name: 'Default',
+        settings: existing,
+        createdAt: new Date().toISOString(),
+      };
+      loaded = [defaultProfile];
+      saveProfiles(loaded);
+      setActiveProfileId(defaultProfile.id);
+      activeId = defaultProfile.id;
+    }
+
+    if (!activeId || !loaded.find((p) => p.id === activeId)) {
+      activeId = loaded[0].id;
+      setActiveProfileId(activeId);
+    }
+
+    setProfilesState(loaded);
+    setActiveProfileIdState(activeId);
+    const active = loaded.find((p) => p.id === activeId);
+    if (active) setSettings({ ...DEFAULT_SETTINGS, ...active.settings });
   }, []);
+
+  useEffect(() => {
+    if (isCreatingProfile) newProfileInputRef.current?.focus();
+  }, [isCreatingProfile]);
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -106,6 +151,12 @@ export default function SettingsPage() {
 
   const handleSave = () => {
     saveSettings(settings);
+    // Keep profiles state in sync
+    if (activeProfileId) {
+      setProfilesState((prev) =>
+        prev.map((p) => (p.id === activeProfileId ? { ...p, settings } : p))
+      );
+    }
     setSaved(true);
     setHasChanges(false);
     setTimeout(() => setSaved(false), 2500);
@@ -114,6 +165,51 @@ export default function SettingsPage() {
   const handleReset = () => {
     setSettings(DEFAULT_SETTINGS);
     setHasChanges(true);
+  };
+
+  const switchProfile = (id: string) => {
+    if (id === activeProfileId) return;
+    // Auto-save current edits before switching
+    saveSettings(settings);
+    const target = profiles.find((p) => p.id === id);
+    if (!target) return;
+    setActiveProfileId(id);
+    setActiveProfileIdState(id);
+    setSettings({ ...DEFAULT_SETTINGS, ...target.settings });
+    setHasChanges(false);
+  };
+
+  const createProfile = () => {
+    const name = newProfileName.trim();
+    if (!name) return;
+    const newProfile: SettingsProfile = {
+      id: `profile-${Date.now()}`,
+      name,
+      settings: { ...settings },
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...profiles, newProfile];
+    saveProfiles(updated);
+    setProfilesState(updated);
+    setActiveProfileId(newProfile.id);
+    setActiveProfileIdState(newProfile.id);
+    setNewProfileName('');
+    setIsCreatingProfile(false);
+    setHasChanges(false);
+  };
+
+  const deleteProfile = (id: string) => {
+    if (profiles.length <= 1) return;
+    const updated = profiles.filter((p) => p.id !== id);
+    saveProfiles(updated);
+    setProfilesState(updated);
+    if (id === activeProfileId) {
+      const next = updated[0];
+      setActiveProfileId(next.id);
+      setActiveProfileIdState(next.id);
+      setSettings({ ...DEFAULT_SETTINGS, ...next.settings });
+      setHasChanges(false);
+    }
   };
 
   const addObjection = () => {
@@ -169,6 +265,110 @@ export default function SettingsPage() {
         </div>
 
         <div className="max-w-3xl space-y-6">
+          {/* Profiles */}
+          <div
+            className="rounded-xl p-6"
+            style={{ backgroundColor: '#16161f', border: '1px solid #2a2a3c' }}
+          >
+            <div className="flex items-center gap-2 mb-4">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(99, 102, 241, 0.15)' }}
+              >
+                <Layers size={15} style={{ color: '#6366f1' }} />
+              </div>
+              <h2 className="text-sm font-semibold" style={{ color: '#f1f5f9' }}>
+                Profiles
+              </h2>
+              <span className="text-xs ml-1" style={{ color: '#64748b' }}>
+                — save different setups for different products or personas
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {profiles.map((p) => {
+                const isActive = p.id === activeProfileId;
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium cursor-pointer transition-all select-none"
+                    style={{
+                      backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : '#0d0d14',
+                      border: `1px solid ${isActive ? '#6366f1' : '#2a2a3c'}`,
+                      color: isActive ? '#a5b4fc' : '#64748b',
+                    }}
+                    onClick={() => switchProfile(p.id)}
+                  >
+                    {p.name}
+                    {profiles.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteProfile(p.id); }}
+                        className="ml-0.5 rounded flex items-center justify-center transition-colors"
+                        style={{ color: isActive ? '#6366f1' : '#475569' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#ef4444'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = isActive ? '#6366f1' : '#475569'; }}
+                        title={`Delete "${p.name}"`}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {isCreatingProfile ? (
+                <div
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-2"
+                  style={{ backgroundColor: '#0d0d14', border: '1px solid #6366f1' }}
+                >
+                  <input
+                    ref={newProfileInputRef}
+                    value={newProfileName}
+                    onChange={(e) => setNewProfileName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') createProfile();
+                      if (e.key === 'Escape') { setIsCreatingProfile(false); setNewProfileName(''); }
+                    }}
+                    placeholder="Profile name..."
+                    className="bg-transparent outline-none text-sm w-32"
+                    style={{ color: '#f1f5f9' }}
+                  />
+                  <button onClick={createProfile} style={{ color: '#6366f1' }}>
+                    <CheckCircle size={14} />
+                  </button>
+                  <button onClick={() => { setIsCreatingProfile(false); setNewProfileName(''); }} style={{ color: '#475569' }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsCreatingProfile(true)}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px dashed #2a2a3c',
+                    color: '#475569',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#6366f1';
+                    (e.currentTarget as HTMLButtonElement).style.color = '#6366f1';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#2a2a3c';
+                    (e.currentTarget as HTMLButtonElement).style.color = '#475569';
+                  }}
+                >
+                  <Plus size={13} />
+                  New Profile
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs mt-3" style={{ color: '#475569' }}>
+              Switching profiles auto-saves your current edits. Settings below apply to the active profile.
+            </p>
+          </div>
+
           {/* Personal Info */}
           <div
             className="rounded-xl p-6"
