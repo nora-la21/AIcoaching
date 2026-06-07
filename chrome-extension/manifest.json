@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "AI Sales Coach",
+  "version": "1.0.0",
+  "description": "Record and analyze your sales calls from Google Meet with AI coaching",
+  "permissions": [
+    "tabCapture",
+    "offscreen",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "http://localhost:*/*",
+    "https://*.railway.app/*",
+    "https://*.up.railway.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AI Sales Coach"
+  }
+}

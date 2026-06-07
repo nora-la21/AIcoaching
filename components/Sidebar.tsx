@@ -10,11 +10,13 @@ import {
   FileText,
   Settings,
   Zap,
+  PhoneCall,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/practice', label: 'Practice', icon: MessageSquare },
+  { href: '/real-calls', label: 'Real Calls', icon: PhoneCall },
   { href: '/sessions', label: 'Sessions', icon: History },
   { href: '/scripts', label: 'Scripts', icon: FileText },
   { href: '/settings', label: 'Settings', icon: Settings },
