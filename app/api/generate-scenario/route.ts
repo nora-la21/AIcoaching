@@ -30,53 +30,88 @@ export async function POST(req: NextRequest) {
     const { description, prospectName, prospectTitle, company, industry, difficulty, settings } = body;
 
     const difficultyGuide = {
-      easy: 'The prospect is receptive and open. They have budget, a clear need, and are genuinely interested. Minor objections only. They will agree fairly quickly if the salesperson covers the basics.',
-      medium: 'The prospect has some real concerns. They need convincing on ROI, have 2-3 meaningful objections, and are evaluating alternatives. They will buy if the salesperson handles objections well.',
-      hard: 'The prospect is skeptical and guarded. Tight budget, strong loyalty to a competitor, multiple blockers. They interrupt, challenge claims, and will only move forward if the salesperson is exceptional.',
+      easy: 'Receptive and open. Budget exists, need is clear, minor objections only. Will agree if the salesperson covers the basics.',
+      medium: 'Has real concerns. Needs convincing on ROI, evaluating 1-2 alternatives, will buy if objections are handled well.',
+      hard: 'Skeptical and guarded. Tight budget, strong loyalty to a competitor or status quo. Interrupts, challenges every claim, will only move if the salesperson is exceptional.',
     };
 
-    const prompt = `You are generating a realistic sales training persona. Create a detailed system prompt for an AI that will roleplay as this prospect in a 1-on-1 sales call practice session.
+    const prompt = `You are building a rich sales training persona. Generate a realistic prospect profile in the exact XML format below.
 
-Input details:
-- Prospect name: ${prospectName || 'Generate a realistic first name'}
-- Title / Role: ${prospectTitle || 'Unspecified — infer from description'}
-- Company: ${company || 'Unspecified — infer a realistic company'}
+Input:
+- Name: ${prospectName || 'Generate a realistic first + last name'}
+- Title: ${prospectTitle || 'Infer from description'}
+- Company: ${company || 'Infer a realistic company name'}
 - Industry: ${industry === 'Any' ? 'Infer from context' : industry}
 - Description: ${description || 'A typical decision-maker in this industry'}
 - Difficulty: ${difficulty} — ${difficultyGuide[difficulty]}
 
-The salesperson is ${settings.userName} from ${settings.companyName}, selling: ${settings.productDescription}.
-Their value proposition: ${settings.valueProposition}.
+Product being sold: ${settings.productDescription} by ${settings.companyName}.
+Value proposition: ${settings.valueProposition}.
 
-Write a system prompt in second person ("You are...") for the AI prospect. Include:
-1. Full name, title, company, and a brief realistic backstory (2–3 sentences)
-2. Personality and communication style (e.g. direct, analytical, skeptical, warm)
-3. Current business challenges and pain points relevant to what's being sold
-4. Decision-making style (who else is involved, what matters most: price / ROI / ease / risk)
-5. 3–5 specific objections they will raise, calibrated to the ${difficulty} difficulty
-6. Subtle behavioral cues (e.g. often checks the time, asks about competitors, mentions budget constraints)
-7. What they'd need to hear to move forward (their "win condition")
+Generate the persona in this EXACT format — fill every section with specific, realistic detail:
 
-End the prompt with this exact line:
-"After every response, on a new line write: COACHING_TIP: [one specific, actionable coaching tip for the salesperson based on what they just said]"
+<role>
+[Who they are: full name, title, company size/scale, 2-sentence backstory. Core personality — what drives them, what they fear, what past vendor experience shapes how they behave. Write in third person.]
+</role>
 
-Write ONLY the system prompt text. No preamble, no metadata, no JSON.`;
+<voice_communication_style>
+[How they sound on a call: pace, directness, emotional tone. Do they interrupt? Ask a lot of questions or stay guarded? Include 2-3 actual phrases they say. Make it feel like a real person, not a description. 4-5 sentences.]
+</voice_communication_style>
+
+<proactive_questions>
+- [Sharp early question they ask the salesperson]
+- [Question probing proof, metrics, or evidence]
+- [Question about implementation risk or timeline]
+- [Question that tests the salesperson's product knowledge]
+- [Question that reveals their underlying real concern]
+</proactive_questions>
+
+<common_objections>
+- [First-person objection in their voice, specific to THIS product being sold]
+- [Budget or ROI objection]
+- [Risk, change-management, or integration objection]
+- [Status-quo or competitor loyalty objection]
+</common_objections>
+
+<enter_conversation_mode>
+[Their mental state at the start of this call. What they say in their very first sentence. What the salesperson must do in the first 30 seconds to keep them engaged. 2-3 sentences.]
+</enter_conversation_mode>
+
+Write ONLY the XML structure. No preamble, no explanations, no extra text.`;
 
     const response = await client.chat.completions.create({
       model: MODEL,
-      max_tokens: 800,
+      max_tokens: 1200,
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const generatedProfile = response.choices[0]?.message?.content?.trim() || '';
+    const characterBlock = response.choices[0]?.message?.content?.trim() || '';
 
-    // Extract name and title from generated profile for display
-    const nameMatch = generatedProfile.match(/You are ([A-Z][a-z]+ [A-Z][a-z]+)/);
+    // Append invariant behavioral rules so the prospect never breaks character
+    const generatedProfile = `${characterBlock}
+
+ROLE: You are playing the BUYER / PROSPECT above. You are NOT the salesperson. You are NOT selling anything.
+The person talking to you (${settings.userName}) is trying to sell you ${settings.productDescription} from ${settings.companyName}. Your job is to evaluate whether to buy — respond authentically based on your character above.
+
+Keep all responses 2-4 sentences. Stay fully in character. Never break the fourth wall. Never offer to sell anything.
+
+After EVERY response, on a completely new line write:
+COACHING_TIP: [one specific, actionable tip for the salesperson about what they just said or did — 1-2 sentences]`;
+
+    // Extract name from the <role> block
+    const roleMatch = characterBlock.match(/<role>([\s\S]*?)<\/role>/i);
+    const roleText = roleMatch ? roleMatch[1] : characterBlock;
+    const nameMatch = roleText.match(/\b([A-Z][a-z]+ [A-Z][a-z]+)\b/);
     const resolvedName = nameMatch ? nameMatch[1] : (prospectName || 'Custom Prospect');
+
+    const resolvedTitle = prospectTitle || (() => {
+      const titleMatch = roleText.match(/,\s*([A-Z][^,\n.]{3,40}?)(?:\s+at\s|\s+of\s|\.|,)/);
+      return titleMatch ? titleMatch[1].trim() : 'Decision Maker';
+    })();
 
     const prospect: CustomProspect = {
       name: resolvedName,
-      title: prospectTitle || 'Decision Maker',
+      title: resolvedTitle,
       company: company || 'Prospect Company',
       industry,
       difficulty,
