@@ -40,6 +40,12 @@ export async function POST(req: NextRequest) {
       .map((m) => `${m.role === 'user' ? settings.userName : 'Prospect'}: ${m.content}`)
       .join('\n\n');
 
+    // Separately list only the salesperson's messages so the model can't confuse them with the prospect's
+    const salespersonLines = messages
+      .filter((m) => m.role === 'user')
+      .map((m, i) => `[${i + 1}] ${m.content}`)
+      .join('\n');
+
     const frameworkObj = framework ? getFrameworkById(framework) : null;
     const frameworkContext = frameworkObj && frameworkObj.id !== 'none'
       ? `\nSales framework being evaluated: ${frameworkObj.name} (${frameworkObj.description})\n${frameworkObj.coachingInstructions}`
@@ -52,8 +58,11 @@ Salesperson: ${settings.userName} from ${settings.companyName}
 Product: ${settings.productDescription}
 ${frameworkContext}
 
-FULL CONVERSATION:
+FULL CONVERSATION (for context):
 ${conversationText}
+
+${settings.userName.toUpperCase()}'S MESSAGES ONLY — the lines you must analyze for mistakes:
+${salespersonLines}
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no preamble, ONLY double quotes " inside the JSON — never single quotes '):
 {
@@ -62,7 +71,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no pream
   "improvements": ["specific area to improve 1", "area 2", "area 3"],
   "mistakes": [
     {
-      "whatWasSaid": "<exact short quote or paraphrase from the salesperson's message — use their actual words>",
+      "whatWasSaid": "<exact short quote or paraphrase — MUST be from ${settings.userName}'s messages listed above, NEVER from the Prospect>",
       "whyItMissed": "<1 sentence explaining why this was ineffective or wrong>",
       "whatToSayInstead": "<a better word-for-word alternative they could have said>"
     }
@@ -74,16 +83,15 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no pream
   "frameworkFeedback": "<2-3 sentences specifically evaluating their use of ${frameworkObj.name} — which elements they hit, which they missed>"` : ''}
 }
 
-IMPORTANT RULES for "mistakes" array:
-- Find 3-5 real mistakes from the actual conversation — things the salesperson actually said
-- "whatWasSaid" must be a real quote or close paraphrase from ${settings.userName}'s messages
-- "whatToSayInstead" must be a complete, natural-sounding alternative sentence they could say verbatim
-- Focus on the most impactful mistakes: missed discovery, weak objection handling, pitching too early, not asking for commitment, etc.
-${frameworkObj && frameworkObj.id !== 'none' ? `- Also flag violations of ${frameworkObj.name} principles specifically` : ''}
-- If the conversation was very short (1-2 exchanges), still find what went wrong
+CRITICAL RULES for "mistakes" array:
+- ONLY quote ${settings.userName}'s messages — NEVER quote anything the Prospect said
+- Each "whatWasSaid" must match one of the numbered lines in the ${settings.userName.toUpperCase()}'S MESSAGES section above
+- "whatToSayInstead" must be a complete, natural-sounding sentence ${settings.userName} could say verbatim
+- Find 3-5 mistakes focused on: missed discovery, pitching before listening, weak objection handling, no next-step ask
+${frameworkObj && frameworkObj.id !== 'none' ? `- Also flag violations of ${frameworkObj.name} principles` : ''}
 
-Scoring criteria: Opening/rapport (0-20), Discovery/questions (0-20), Value proposition (0-20), Objection handling (0-20), Closing/next steps (0-20).
-Be honest. A mediocre call should score 40-60, not 70+.`;
+Scoring: Opening/rapport (0-20), Discovery/questions (0-20), Value proposition (0-20), Objection handling (0-20), Closing/next steps (0-20).
+Be honest — a mediocre call should score 40-60, not 70+.`;
 
     const response = await client.chat.completions.create({
       model: MODEL,
