@@ -34,10 +34,11 @@ function parseCoachingTip(text: string): { reply: string; coachingTip: string } 
   const tipMarker = 'COACHING_TIP:';
   const tipIndex = text.lastIndexOf(tipMarker);
   if (tipIndex === -1) return { reply: text.trim(), coachingTip: '' };
-  return {
-    reply: text.substring(0, tipIndex).trim(),
-    coachingTip: text.substring(tipIndex + tipMarker.length).trim(),
-  };
+  const reply = text.substring(0, tipIndex).trim();
+  const coachingTip = text.substring(tipIndex + tipMarker.length).trim();
+  // If the model skipped the prospect reply and only output the coaching tip, show raw text
+  if (!reply) return { reply: text.trim(), coachingTip: '' };
+  return { reply, coachingTip };
 }
 
 export async function POST(req: NextRequest) {

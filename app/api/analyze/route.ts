@@ -55,7 +55,7 @@ ${frameworkContext}
 FULL CONVERSATION:
 ${conversationText}
 
-Return ONLY a valid JSON object with this exact structure (no markdown, no preamble):
+Return ONLY a valid JSON object with this exact structure (no markdown, no preamble, ONLY double quotes " inside the JSON — never single quotes '):
 {
   "score": <overall 0-100>,
   "strengths": ["specific strength 1 with example from the conversation", "strength 2", "strength 3"],
@@ -95,7 +95,16 @@ Be honest. A mediocre call should score 40-60, not 70+.`;
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No valid JSON in response');
 
-    const analysis = JSON.parse(jsonMatch[0]);
+    // LLMs sometimes use single quotes — try standard parse first, then repair
+    let analysis: Record<string, unknown>;
+    try {
+      analysis = JSON.parse(jsonMatch[0]);
+    } catch {
+      const repaired = jsonMatch[0]
+        .replace(/:\s*'((?:[^'\\]|\\.)*)'/g, ': "$1"') // 'value' → "value"
+        .replace(/,\s*([}\]])/g, '$1');                 // trailing commas
+      analysis = JSON.parse(repaired);
+    }
 
     const sanitized: SessionAnalysis = {
       score: Math.max(0, Math.min(100, Number(analysis.score) || 50)),
@@ -109,10 +118,10 @@ Be honest. A mediocre call should score 40-60, not 70+.`;
           }))
         : [],
       talkRatio: estimatedTalkRatio,
-      summary: analysis.summary || 'Good practice session. Review the mistakes section for specific improvements.',
-      followUpEmail: analysis.followUpEmail || `Subject: Great speaking with you today\n\nHi,\n\nThank you for your time.\n\nBest,\n${settings.userName}`,
+      summary: String(analysis.summary || 'Good practice session. Review the mistakes section for specific improvements.'),
+      followUpEmail: String(analysis.followUpEmail || `Subject: Great speaking with you today\n\nHi,\n\nThank you for your time.\n\nBest,\n${settings.userName}`),
       frameworkScore: analysis.frameworkScore ? Math.max(0, Math.min(100, Number(analysis.frameworkScore))) : undefined,
-      frameworkFeedback: analysis.frameworkFeedback || undefined,
+      frameworkFeedback: analysis.frameworkFeedback ? String(analysis.frameworkFeedback) : undefined,
     };
 
     return NextResponse.json(sanitized);
