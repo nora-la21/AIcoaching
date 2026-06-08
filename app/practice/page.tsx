@@ -457,7 +457,7 @@ function PracticeContent() {
       <main className="flex-1 ml-60 flex flex-col h-screen overflow-hidden">
         {/* ── PHASE: SELECT ─────────────────────────────────────── */}
         {phase === 'select' && (
-          <div className="flex-1 p-8">
+          <div className="flex-1 overflow-y-auto p-8">
             <div className="mb-8 flex items-start justify-between max-w-4xl">
               <div>
                 <h1 className="text-2xl font-bold mb-1" style={{ color: '#f1f5f9' }}>
