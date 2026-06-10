@@ -100,18 +100,40 @@ Be honest — a mediocre call should score 40-60, not 70+.`;
     });
 
     const rawText = response.choices[0]?.message?.content || '{}';
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No valid JSON in response');
+    // Strip markdown code fences before searching for JSON
+    const cleanText = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
 
-    // LLMs sometimes use single quotes — try standard parse first, then repair
+    const fallbackAnalysis: SessionAnalysis = {
+      score: 50,
+      strengths: ['Engaged with the prospect', 'Communicated clearly', 'Stayed professional'],
+      improvements: ['Ask more discovery questions', 'Handle objections more confidently', 'Be more concise'],
+      mistakes: [],
+      talkRatio: estimatedTalkRatio,
+      summary: 'Analysis unavailable — the AI response could not be parsed. Your session has been saved.',
+      followUpEmail: `Subject: Great speaking with you today\n\nHi,\n\nThank you for your time.\n\nBest,\n${settings.userName}`,
+    };
+
+    if (!jsonMatch) {
+      console.error('Analyze: no JSON in response:', rawText.slice(0, 300));
+      return NextResponse.json(fallbackAnalysis);
+    }
+
+    // Progressive repair: single quotes → trailing commas → unquoted string values
     let analysis: Record<string, unknown>;
     try {
       analysis = JSON.parse(jsonMatch[0]);
     } catch {
-      const repaired = jsonMatch[0]
-        .replace(/:\s*'((?:[^'\\]|\\.)*)'/g, ': "$1"') // 'value' → "value"
-        .replace(/,\s*([}\]])/g, '$1');                 // trailing commas
-      analysis = JSON.parse(repaired);
+      try {
+        const repaired = jsonMatch[0]
+          .replace(/:\s*'((?:[^'\\]|\\.)*)'/g, ': "$1"')           // 'value' → "value"
+          .replace(/,\s*([}\]])/g, '$1')                            // trailing commas
+          .replace(/:\s*([A-Za-z][^"\n,}\]]*)"(\s*[,}\]])/g, ': "$1"$2'); // unquoted value: Foo" → "Foo"
+        analysis = JSON.parse(repaired);
+      } catch (e2) {
+        console.error('Analyze: JSON repair failed:', e2, 'Raw:', rawText.slice(0, 300));
+        return NextResponse.json(fallbackAnalysis);
+      }
     }
 
     const sanitized: SessionAnalysis = {

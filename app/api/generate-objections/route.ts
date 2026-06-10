@@ -72,10 +72,19 @@ Return ONLY a valid JSON array, no other text:
     });
 
     const rawText = response.choices[0]?.message?.content || '[]';
-    const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error('No valid JSON array in response');
+    const clean = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const jsonMatch = clean.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return NextResponse.json({ objections: [] });
 
-    const objections: GeneratedObjection[] = JSON.parse(jsonMatch[0]);
+    let objections: GeneratedObjection[];
+    try {
+      objections = JSON.parse(jsonMatch[0]);
+    } catch {
+      const repaired = jsonMatch[0]
+        .replace(/:\s*'((?:[^'\\]|\\.)*)'/g, ': "$1"')
+        .replace(/,\s*([}\]])/g, '$1');
+      objections = JSON.parse(repaired);
+    }
 
     return NextResponse.json({ objections: objections.slice(0, 6) });
   } catch (error) {
