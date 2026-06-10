@@ -97,6 +97,7 @@ function PracticeContent() {
   const recognitionRef = useRef<any>(null);
   const voiceModeRef = useRef(voiceMode);
   const isLoadingRef = useRef(isLoading);
+  const activeProfileRef = useRef<string | undefined>(undefined);
 
   // Keep refs in sync
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
@@ -244,7 +245,7 @@ function PracticeContent() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages, scenario: selectedScenario, settings, customProspectProfile: customProspect?.generatedProfile, framework: selectedFramework, generatedObjections: generatedObjectionsRef.current.map(o => o.objection) }),
+        body: JSON.stringify({ messages: apiMessages, scenario: selectedScenario, settings, customProspectProfile: activeProfileRef.current, framework: selectedFramework, generatedObjections: generatedObjectionsRef.current.map(o => o.objection) }),
       });
 
       if (!res.ok) {
@@ -317,6 +318,7 @@ function PracticeContent() {
     const effectiveProfile = blind
       ? buildBlindCallSystemPrompt(blind)
       : customProspect?.generatedProfile;
+    activeProfileRef.current = effectiveProfile;
 
     const openingContext = blind
       ? `${blind.prospect} who might be interested in ${blind.product}`
@@ -614,7 +616,7 @@ function PracticeContent() {
               >
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => { window.speechSynthesis.cancel(); recognitionRef.current?.stop(); setPhase('select'); setActiveBlindScenario(null); }}
+                    onClick={() => { window.speechSynthesis.cancel(); recognitionRef.current?.stop(); setPhase('select'); setActiveBlindScenario(null); activeProfileRef.current = undefined; }}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                     style={{ color: '#64748b' }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e1e2a'; (e.currentTarget as HTMLButtonElement).style.color = '#f1f5f9'; }}
