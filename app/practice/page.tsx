@@ -22,7 +22,7 @@ import MessageBubble from '@/components/MessageBubble';
 import ScenarioCard from '@/components/ScenarioCard';
 import AnalysisModal from '@/components/AnalysisModal';
 import GenerateScenarioModal from '@/components/GenerateScenarioModal';
-import { SCENARIOS, FRAMEWORKS, getScenarioById, getFrameworkById } from '@/lib/scenarios';
+import { SCENARIOS, FRAMEWORKS, getScenarioById, getFrameworkById, BlindScenario, getRandomBlindScenario, buildBlindCallSystemPrompt } from '@/lib/scenarios';
 import { getSettings, saveSession } from '@/lib/storage';
 import { ChatMessage, Session, SessionAnalysis, CustomProspect } from '@/lib/types';
 import { GeneratedObjection } from '@/app/api/generate-objections/route';
@@ -71,6 +71,11 @@ function PracticeContent() {
   // Custom prospect state
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [customProspect, setCustomProspect] = useState<CustomProspect | null>(null);
+
+  // Blind call state
+  const [showBlindReveal, setShowBlindReveal] = useState(false);
+  const [revealedBlindScenario, setRevealedBlindScenario] = useState<BlindScenario | null>(null);
+  const [activeBlindScenario, setActiveBlindScenario] = useState<BlindScenario | null>(null);
 
   // Framework state
   const [selectedFramework, setSelectedFramework] = useState('none');
@@ -289,11 +294,13 @@ function PracticeContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldVoiceSend, input]);
 
-  const startSession = useCallback(async () => {
+  const startSession = useCallback(async (blind?: BlindScenario) => {
     if (!selectedScenario) return;
     const settings = getSettings();
     const scenarioObj = getScenarioById(selectedScenario);
     if (!scenarioObj) return;
+
+    if (blind) setActiveBlindScenario(blind);
 
     setMessages([]);
     setCoachingTip('');
@@ -307,7 +314,16 @@ function PracticeContent() {
 
     setIsLoading(true);
 
-    // Fetch objections and opening message in parallel
+    const effectiveProfile = blind
+      ? buildBlindCallSystemPrompt(blind)
+      : customProspect?.generatedProfile;
+
+    const openingContext = blind
+      ? `${blind.prospect} who might be interested in ${blind.product}`
+      : customProspect
+      ? customProspect.title + ' roleplay'
+      : scenarioObj.label + ' scenario';
+
     // Fire and forget — updates state when ready, doesn't block the opening message
     void fetch('/api/generate-objections', {
       method: 'POST',
@@ -315,9 +331,9 @@ function PracticeContent() {
       body: JSON.stringify({
         settings,
         scenario: selectedScenario,
-        prospectTitle: customProspect?.title,
+        prospectTitle: blind?.prospect || customProspect?.title,
         prospectIndustry: customProspect?.industry,
-        difficulty: customProspect?.difficulty || 'medium',
+        difficulty: blind?.difficulty || customProspect?.difficulty || 'medium',
       }),
     }).then(r => r.json()).then(data => {
       if (data.objections) {
@@ -331,10 +347,10 @@ function PracticeContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: `[START] Begin the ${customProspect ? customProspect.title + ' roleplay' : scenarioObj.label} scenario. Start as the prospect. Set the scene with your opening line.` }],
+          messages: [{ role: 'user', content: `[START] Begin the ${openingContext}. Start as the prospect. Set the scene with your opening line.` }],
           scenario: selectedScenario,
           settings,
-          customProspectProfile: customProspect?.generatedProfile,
+          customProspectProfile: effectiveProfile,
           framework: selectedFramework,
           generatedObjections: generatedObjectionsRef.current.map(o => o.objection),
         }),
@@ -408,7 +424,7 @@ function PracticeContent() {
       const session: Session = {
         id: `session-${Date.now()}`,
         scenario: selectedScenario,
-        scenarioLabel: scenarioObj?.label || selectedScenario,
+        scenarioLabel: activeBlindScenario ? `Blind Call: ${activeBlindScenario.product}` : scenarioObj?.label || selectedScenario,
         messages: cleanMessages,
         analysis: analysisData,
         createdAt: new Date().toISOString(),
@@ -544,15 +560,26 @@ function PracticeContent() {
             {selectedScenario && (
               <div className="mt-6 max-w-4xl flex items-center gap-4">
                 <button
-                  onClick={startSession}
+                  onClick={() => {
+                    if (selectedScenario === 'blind-call') {
+                      setRevealedBlindScenario(getRandomBlindScenario());
+                      setShowBlindReveal(true);
+                    } else {
+                      startSession();
+                    }
+                  }}
                   disabled={isLoading}
                   className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all"
-                  style={{ backgroundColor: '#6366f1', color: 'white', opacity: isLoading ? 0.7 : 1 }}
-                  onMouseEnter={(e) => { if (!isLoading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#4f46e5'; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6366f1'; }}
+                  style={{
+                    backgroundColor: selectedScenario === 'blind-call' ? '#a855f7' : '#6366f1',
+                    color: 'white',
+                    opacity: isLoading ? 0.7 : 1,
+                  }}
+                  onMouseEnter={(e) => { if (!isLoading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = selectedScenario === 'blind-call' ? '#9333ea' : '#4f46e5'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = selectedScenario === 'blind-call' ? '#a855f7' : '#6366f1'; }}
                 >
                   {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                  {isLoading ? 'Starting...' : `Start ${scenarioObj?.label || 'Session'}`}
+                  {isLoading ? 'Starting...' : selectedScenario === 'blind-call' ? '🎯 Reveal My Mission' : `Start ${scenarioObj?.label || 'Session'}`}
                 </button>
 
                 {/* Voice mode toggle on start screen */}
@@ -587,7 +614,7 @@ function PracticeContent() {
               >
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => { window.speechSynthesis.cancel(); recognitionRef.current?.stop(); setPhase('select'); }}
+                    onClick={() => { window.speechSynthesis.cancel(); recognitionRef.current?.stop(); setPhase('select'); setActiveBlindScenario(null); }}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                     style={{ color: '#64748b' }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1e1e2a'; (e.currentTarget as HTMLButtonElement).style.color = '#f1f5f9'; }}
@@ -597,10 +624,10 @@ function PracticeContent() {
                   </button>
                   <div>
                     <h2 className="text-sm font-semibold" style={{ color: '#f1f5f9' }}>
-                      {scenarioObj?.label || 'Practice Session'}
+                      {activeBlindScenario ? activeBlindScenario.product : scenarioObj?.label || 'Practice Session'}
                     </h2>
                     <p className="text-xs" style={{ color: '#64748b' }}>
-                      {messages.filter((m) => m.role === 'user').length} exchanges
+                      {activeBlindScenario ? activeBlindScenario.prospect.split(',')[0] : `${messages.filter((m) => m.role === 'user').length} exchanges`}
                     </p>
                   </div>
                 </div>
@@ -854,8 +881,17 @@ function PracticeContent() {
 
               <div className="p-4 border-t" style={{ borderColor: '#2a2a3c' }}>
                 <p className="text-xs font-medium mb-1" style={{ color: '#64748b' }}>Current Scenario</p>
-                <p className="text-sm font-semibold" style={{ color: '#f1f5f9' }}>{scenarioObj?.label}</p>
-                <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{scenarioObj?.description}</p>
+                {activeBlindScenario ? (
+                  <>
+                    <p className="text-sm font-semibold" style={{ color: '#f1f5f9' }}>{activeBlindScenario.product}</p>
+                    <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#64748b' }}>{activeBlindScenario.prospect}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold" style={{ color: '#f1f5f9' }}>{scenarioObj?.label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>{scenarioObj?.description}</p>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -882,6 +918,84 @@ function PracticeContent() {
       </main>
 
       {toast && <Toast message={toast.message} type={toast.type} />}
+
+      {/* ── BLIND CALL REVEAL OVERLAY ─────────────────────────── */}
+      {showBlindReveal && revealedBlindScenario && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(10px)' }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-7"
+            style={{
+              backgroundColor: '#16161f',
+              border: '1px solid rgba(168,85,247,0.4)',
+              boxShadow: '0 0 60px rgba(168,85,247,0.12)',
+            }}
+          >
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-2">🎯</div>
+              <h2 className="text-lg font-bold tracking-widest uppercase" style={{ color: '#f1f5f9' }}>
+                Mission Revealed
+              </h2>
+              <p className="text-xs mt-1" style={{ color: '#64748b' }}>Read your briefing — then start the call</p>
+            </div>
+
+            {/* Selling */}
+            <div className="mb-3 p-4 rounded-xl" style={{ backgroundColor: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
+              <p className="text-xs font-bold tracking-widest mb-1.5" style={{ color: '#a855f7' }}>YOU&apos;RE SELLING</p>
+              <p className="text-base font-bold mb-1" style={{ color: '#f1f5f9' }}>{revealedBlindScenario.product}</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#94a3b8' }}>{revealedBlindScenario.productDescription}</p>
+            </div>
+
+            {/* Prospect */}
+            <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)' }}>
+              <p className="text-xs font-bold tracking-widest mb-1.5" style={{ color: '#10b981' }}>YOUR PROSPECT</p>
+              <p className="text-sm font-bold mb-1" style={{ color: '#f1f5f9' }}>{revealedBlindScenario.prospect}</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#94a3b8' }}>{revealedBlindScenario.prospectSituation}</p>
+            </div>
+
+            {/* Difficulty + reroll */}
+            <div className="flex items-center justify-between mb-5">
+              <span
+                className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                style={{
+                  backgroundColor: revealedBlindScenario.difficulty === 'Beginner' ? 'rgba(34,197,94,0.12)' : revealedBlindScenario.difficulty === 'Advanced' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
+                  color: revealedBlindScenario.difficulty === 'Beginner' ? '#22c55e' : revealedBlindScenario.difficulty === 'Advanced' ? '#ef4444' : '#f59e0b',
+                }}
+              >
+                ⚡ {revealedBlindScenario.difficulty}
+              </span>
+              <button
+                onClick={() => setRevealedBlindScenario(getRandomBlindScenario())}
+                className="text-xs px-3 py-1.5 rounded-lg transition-all"
+                style={{ color: '#64748b', backgroundColor: '#0d0d14', border: '1px solid #2a2a3c' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#94a3b8'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#64748b'; }}
+              >
+                🔄 Different scenario
+              </button>
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={() => {
+                setShowBlindReveal(false);
+                startSession(revealedBlindScenario);
+              }}
+              disabled={isLoading}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all"
+              style={{ backgroundColor: '#a855f7', color: 'white', opacity: isLoading ? 0.7 : 1 }}
+              onMouseEnter={(e) => { if (!isLoading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#9333ea'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#a855f7'; }}
+            >
+              {isLoading ? <Loader2 size={15} className="animate-spin inline mr-2" /> : null}
+              {isLoading ? 'Starting...' : "I'm Ready — Start the Call"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showGenerateModal && (
         <GenerateScenarioModal

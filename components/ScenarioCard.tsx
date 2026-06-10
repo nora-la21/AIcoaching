@@ -8,6 +8,7 @@ import {
   Target,
   DollarSign,
   HelpCircle,
+  Shuffle,
   ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ const ICONS: Record<string, LucideIcon> = {
   Target,
   DollarSign,
   HelpCircle,
+  Shuffle,
 };
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -38,17 +40,21 @@ interface ScenarioCardProps {
 export default function ScenarioCard({ scenario, onSelect, isSelected }: ScenarioCardProps) {
   const Icon: LucideIcon = ICONS[scenario.icon] || Phone;
   const difficultyColor = DIFFICULTY_COLORS[scenario.difficulty] || '#64748b';
+  const isBlind = scenario.id === 'blind-call';
 
   return (
     <button
       onClick={() => onSelect(scenario.id)}
       className="w-full text-left rounded-xl p-5 transition-all duration-200 group"
       style={{
-        backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.12)' : '#16161f',
+        backgroundColor: isSelected
+          ? (isBlind ? 'rgba(168, 85, 247, 0.1)' : 'rgba(99, 102, 241, 0.12)')
+          : '#16161f',
         border: isSelected
-          ? '1px solid rgba(99, 102, 241, 0.5)'
-          : '1px solid #2a2a3c',
+          ? `1px solid ${isBlind ? 'rgba(168,85,247,0.6)' : 'rgba(99, 102, 241, 0.5)'}`
+          : isBlind ? '1px solid rgba(168,85,247,0.25)' : '1px solid #2a2a3c',
         cursor: 'pointer',
+        boxShadow: isBlind && isSelected ? '0 0 20px rgba(168,85,247,0.15)' : 'none',
       }}
       onMouseEnter={(e) => {
         if (!isSelected) {
@@ -80,8 +86,13 @@ export default function ScenarioCard({ scenario, onSelect, isSelected }: Scenari
         />
       </div>
 
-      <h3 className="font-semibold text-sm mb-1" style={{ color: '#f1f5f9' }}>
+      <h3 className="font-semibold text-sm mb-1 flex items-center gap-2" style={{ color: '#f1f5f9' }}>
         {scenario.label}
+        {isBlind && (
+          <span className="text-xs px-1.5 py-0.5 rounded font-bold tracking-wide" style={{ backgroundColor: 'rgba(168,85,247,0.15)', color: '#a855f7', fontSize: '9px' }}>
+            RANDOM
+          </span>
+        )}
       </h3>
       <p className="text-xs leading-relaxed mb-3" style={{ color: '#64748b' }}>
         {scenario.description}

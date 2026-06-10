@@ -15,6 +15,15 @@ export interface Framework {
   coachingInstructions: string;
 }
 
+export interface BlindScenario {
+  id: string;
+  product: string;
+  productDescription: string;
+  prospect: string;
+  prospectSituation: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+}
+
 export const SCENARIOS: Scenario[] = [
   {
     id: 'cold-call',
@@ -71,6 +80,14 @@ export const SCENARIOS: Scenario[] = [
     icon: 'HelpCircle',
     color: '#10b981',
     difficulty: 'Beginner',
+  },
+  {
+    id: 'blind-call',
+    label: 'Blind Call',
+    description: 'Random product, random prospect — no prep allowed. Sink or swim.',
+    icon: 'Shuffle',
+    color: '#a855f7',
+    difficulty: 'Advanced',
   },
 ];
 
@@ -265,4 +282,190 @@ COACHING_TIP: CLOSED ✗ — "Do you use multiple tools?" gets a yes/no. Try: "W
 COACHING_TIP: OPEN ✓ — Good question that opened them up. Now dig deeper into the cost they mentioned: "What's the business impact of that delay?"
 COACHING_TIP: VALUE LINK ✓ — You connected the feature directly to their stated pain. This is exactly how to build relevance — keep doing this before introducing any new features.
 COACHING_TIP: PITCH TOO SOON ✗ — You pitched a feature before understanding their situation. Ask "What does your current process look like?" first to earn the right to present a solution.`;
+}
+
+export const BLIND_SCENARIOS: BlindScenario[] = [
+  {
+    id: 'marathon-app',
+    product: 'Marathon Training App',
+    productDescription: 'AI-personalized 16-week training plans, daily workouts, and nutrition coaching — $29/month',
+    prospect: 'Alex, 34, marketing manager',
+    prospectSituation: 'Signed up for their first marathon in 5 months. Currently running 3×/week with no structured plan. Excited but overwhelmed and secretly terrified of the distance.',
+    difficulty: 'Beginner',
+  },
+  {
+    id: 'sleep-wearable',
+    product: 'Sleep Optimization Wearable',
+    productDescription: 'Medical-grade wrist device that tracks sleep stages and HRV, with daily actionable tips — $199 device + $12/month',
+    prospect: 'Jordan, 42, startup CEO',
+    prospectSituation: 'Running on 5 hours of sleep a night. Team has mentioned they seem distracted and short-tempered. Spouse is threatening to sleep in the guest room if things don\'t change.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'expense-saas',
+    product: 'Expense Management Platform',
+    productDescription: 'Auto-scans receipts, enforces spend policy, syncs with 40+ accounting tools — $15/user/month, 10-seat minimum',
+    prospect: 'Sarah, 38, Finance Director at a 60-person marketing agency',
+    prospectSituation: 'Expense reports take her team 3 full days each month. She missed approving a $12K spend last month and got a call from the CEO. She\'s embarrassed and needs a fix before year-end.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'dog-course',
+    product: 'Dog Training Online Course',
+    productDescription: '6-week certified trainer video course covering obedience, leash manners, and separation anxiety — $149 one-time',
+    prospect: 'Mike, 29, software engineer',
+    prospectSituation: 'Got a Labrador puppy 4 months ago that is destroying furniture, pulling on the leash, and barking all night. His girlfriend is seriously considering moving out if the dog situation doesn\'t improve.',
+    difficulty: 'Beginner',
+  },
+  {
+    id: 'team-building',
+    product: 'Corporate Team-Building Workshop',
+    productDescription: 'Half-day facilitated cooking challenge or escape room for teams of 10–50 — $150–$200/person',
+    prospect: 'Chris, 44, HR Director at a 200-person fintech company',
+    prospectSituation: 'Two departments merged and refuse to collaborate. Engagement scores dropped 22 points. The CEO has mandated a "culture fix" event before Q4 earnings — Chris has 6 weeks and a tight budget.',
+    difficulty: 'Advanced',
+  },
+  {
+    id: 'ergonomic-setup',
+    product: 'Premium Home Office Bundle',
+    productDescription: 'Electric standing desk + ergonomic chair + monitor arm — $1,200 complete setup, white-glove delivery, 10-year warranty',
+    prospect: 'Emma, 32, UX designer, fully remote',
+    prospectSituation: 'Working from a kitchen table since COVID. Lower back pain has gotten bad enough she saw a chiropractor twice this month. Her company offers a $600 WFH equipment stipend she\'s never used.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'freelancer-tax',
+    product: 'Freelancer Tax Software',
+    productDescription: 'Automated quarterly tax estimates, expense tracking, and 1099 filing for independent contractors — $25/month or $199/year',
+    prospect: 'Tom, 27, freelance graphic designer',
+    prospectSituation: 'Got a $3,200 surprise tax bill last April. Tracks expenses in a spreadsheet and missed half his deductions. Tax season is 4 months away and he\'s already anxious about it.',
+    difficulty: 'Beginner',
+  },
+  {
+    id: 'mental-health-platform',
+    product: 'Corporate Mental Health Benefit',
+    productDescription: 'Unlimited video therapy sessions + manager mental health training — $45/employee/month',
+    prospect: 'Patricia, 50, Chief People Officer at a 350-person SaaS company',
+    prospectSituation: 'Lost 3 senior engineers to burnout last quarter. Glassdoor score dropped. Board is asking about mental health benefits and open enrollment for next year starts in 5 weeks.',
+    difficulty: 'Advanced',
+  },
+  {
+    id: 'wine-club',
+    product: 'Curated Wine Subscription',
+    productDescription: 'Monthly sommelier-curated 6-bottle delivery based on your taste profile — $89/month, cancel anytime',
+    prospect: 'James, 46, corporate lawyer',
+    prospectSituation: 'Always buys the same 3 wines. His wife\'s birthday is in 3 weeks and she\'s been hinting she wants to explore wine more. Has never tried a subscription and thinks they\'re all gimmicks.',
+    difficulty: 'Beginner',
+  },
+  {
+    id: 'coding-kids',
+    product: "Children's Coding Bootcamp",
+    productDescription: '10-week after-school Python and game dev program for kids 8–14 — $380/semester, twice a week',
+    prospect: 'Karen, 39, parent of a 10-year-old boy',
+    prospectSituation: 'Her son plays video games 4+ hours a day. She wants to channel that into something productive but worries about the price and whether he\'ll actually stick with it.',
+    difficulty: 'Beginner',
+  },
+  {
+    id: 'podcast-production',
+    product: 'Podcast Production Service',
+    productDescription: 'Full editing, show notes, and social clips per episode — $350/episode, 48-hour turnaround, unlimited revisions',
+    prospect: 'Mark, 38, business coach with a bi-weekly podcast',
+    prospectSituation: 'Editing each episode takes him 6–8 hours. Growth has stagnated. A potential sponsor walked away because production quality was inconsistent. He knows he needs help but hasn\'t pulled the trigger.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'legal-automation',
+    product: 'Legal Document Automation Tool',
+    productDescription: 'AI-generated NDAs, employment agreements, and client contracts in under 5 minutes — $199/month for solo firms',
+    prospect: 'Susan, 41, solo employment attorney',
+    prospectSituation: 'Drafts every contract from scratch — 2–3 hours each. Has 5 contracts in her inbox right now. Her paralegal quit last week. Admin work is eating into billable hours and she\'s reaching a breaking point.',
+    difficulty: 'Advanced',
+  },
+  {
+    id: 'ebike-subscription',
+    product: 'Electric Bike Subscription',
+    productDescription: 'Monthly e-bike subscription with insurance and maintenance included — $149/month, no long-term commitment',
+    prospect: 'Carlos, 31, product manager in San Francisco',
+    prospectSituation: 'Spending $280/month on rideshare since his car was stolen 6 months ago. Keeps researching e-bikes but can\'t justify $3,000 upfront. Knows he needs more exercise but hates the gym.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'life-insurance',
+    product: 'Term Life Insurance',
+    productDescription: '20-year term, $1M coverage — healthy 35-year-old pays ~$35/month, fully digital, approved in 10 minutes',
+    prospect: 'Brian, 36, new father with a $450K mortgage',
+    prospectSituation: 'His daughter was born 3 months ago. His parents keep asking him about life insurance but he puts it off because "it feels morbid." Has no idea where to start and keeps forgetting about it.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'ai-recruitment',
+    product: 'AI Recruitment Platform',
+    productDescription: 'Auto-ranks resumes, sends video screening questions, syncs with your ATS — $799/month for up to 10 open roles',
+    prospect: 'Amanda, 43, Head of Talent at a 120-person e-commerce brand',
+    prospectSituation: '12 open roles, 3 sitting open for 90+ days. Spends 4 hours/day on resume review. Just lost a top candidate to a competitor while waiting for hiring manager feedback. CEO is demanding answers.',
+    difficulty: 'Advanced',
+  },
+  {
+    id: 'executive-coaching',
+    product: 'Executive Leadership Coaching',
+    productDescription: '6-month 1-on-1 program with a former Fortune 500 executive — $2,500/month',
+    prospect: 'Daniel, 44, VP of Engineering at a Series B startup',
+    prospectSituation: 'Recently promoted from senior IC to managing managers. Got brutal 360 feedback he wasn\'t expecting — team says he micromanages and avoids conflict. First time in this kind of leadership role.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'meal-prep',
+    product: 'Office Meal Prep Delivery',
+    productDescription: 'Weekly healthy team lunches, individually labelled, delivered Monday morning — $14/person/week, min 5 people',
+    prospect: 'Rachel, 45, Operations Manager at a 22-person startup in crunch mode',
+    prospectSituation: 'Team is working brutal hours on a product launch. People take long lunch breaks or eat junk. The CEO wants a perk that keeps people energized and focused without mandating office hours.',
+    difficulty: 'Beginner',
+  },
+  {
+    id: 'language-coaching',
+    product: 'Business Language Coaching',
+    productDescription: 'Live 1-on-1 sessions with a native speaker focused on business fluency — Spanish, Mandarin, or Portuguese — $199/month for 4 sessions',
+    prospect: 'David, 51, VP Sales leading expansion into Mexico',
+    prospectSituation: 'Major client dinner in Mexico City in 7 weeks. Boss expects him to handle small talk in Spanish. Tried Duolingo for 3 weeks and quit. He\'s embarrassed about it and doesn\'t know who to ask for help.',
+    difficulty: 'Intermediate',
+  },
+  {
+    id: 'home-security',
+    product: 'Smart Home Security System',
+    productDescription: 'Cameras, door sensors, AI monitoring + 45-second police dispatch response — $299 install + $29/month',
+    prospect: 'Lisa, 38, stay-at-home parent, husband travels every week',
+    prospectSituation: 'Neighbor\'s house was burglarized last month while on vacation. She has two young kids and no security system. Just bought a new TV and laptop. Husband keeps sending her articles but she hasn\'t acted.',
+    difficulty: 'Beginner',
+  },
+  {
+    id: 'golf-membership',
+    product: 'Private Golf Club Membership',
+    productDescription: 'Championship 18-hole course, simulator, hosted corporate events — $5,000 initiation + $350/month dues',
+    prospect: 'Robert, 52, Managing Partner at a mid-size law firm',
+    prospectSituation: 'Uses golf as his main business development tool but drives 45 minutes to a crowded public course. Two top clients belong to private clubs and keep inviting him. Hesitant to commit with economic uncertainty.',
+    difficulty: 'Advanced',
+  },
+];
+
+export function getRandomBlindScenario(): BlindScenario {
+  return BLIND_SCENARIOS[Math.floor(Math.random() * BLIND_SCENARIOS.length)];
+}
+
+export function buildBlindCallSystemPrompt(blind: BlindScenario): string {
+  return `ROLE: You are playing a BUYER / PROSPECT in a sales roleplay. You are NOT a salesperson. You are NOT selling anything.
+
+Who you are: ${blind.prospect}
+Your situation right now: ${blind.prospectSituation}
+
+The salesperson is going to pitch you: ${blind.product} — ${blind.productDescription}
+
+YOUR JOB: React realistically based on your specific situation above.
+- Show genuine interest ONLY when they ask the right questions and connect their product to your real situation
+- Be appropriately skeptical about price, time commitment, fit, or timing based on your circumstances
+- Ask natural questions a real person in your situation would ask
+- Don't make it too easy — make them uncover your situation and earn your trust before warming up
+
+Keep responses 2-4 sentences. Stay fully in character. Never break character. Never offer to sell anything.
+
+After EVERY response, on a new line starting EXACTLY with "COACHING_TIP:" write 1-2 sentences of coaching feedback evaluating what the salesperson just said and what they could do better.`;
 }
