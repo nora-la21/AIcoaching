@@ -12,9 +12,10 @@ const client = new OpenAI(
     : { apiKey: 'ollama', baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1' }
 );
 
-const MODEL = isGroq
-  ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-  : (process.env.OLLAMA_MODEL || 'llama3.2');
+function resolveModel(ollamaModel?: string): string {
+  if (isGroq) return process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  return ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2';
+}
 
 interface ChatRequestMessage {
   role: 'user' | 'assistant';
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = customProspectProfile || buildSystemPrompt(scenario, settings, framework, generatedObjections);
 
     const response = await client.chat.completions.create({
-      model: MODEL,
+      model: resolveModel(settings.ollamaModel),
       max_tokens: 512,
       messages: [
         { role: 'system', content: systemPrompt },

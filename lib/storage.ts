@@ -122,6 +122,7 @@ export const DEFAULT_SETTINGS: Settings = {
     "I need to think about it",
     "Can you send me more information?",
   ],
+  ollamaModel: 'llama3.2',
 };
 
 export function getSettings(): Settings {

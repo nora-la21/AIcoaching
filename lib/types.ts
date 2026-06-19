@@ -61,6 +61,7 @@ export interface Settings {
   targetCustomer: string;
   valueProposition: string;
   commonObjections: string[];
+  ollamaModel?: string;
 }
 
 export interface SettingsProfile {

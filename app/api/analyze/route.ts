@@ -11,9 +11,10 @@ const client = new OpenAI(
     : { apiKey: 'ollama', baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1' }
 );
 
-const MODEL = isGroq
-  ? (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile')
-  : (process.env.OLLAMA_MODEL || 'llama3.2');
+function resolveModel(ollamaModel?: string): string {
+  if (isGroq) return process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  return ollamaModel || process.env.OLLAMA_MODEL || 'llama3.2';
+}
 
 interface AnalyzeRequest {
   messages: ChatMessage[];
@@ -94,7 +95,7 @@ Scoring: Opening/rapport (0-20), Discovery/questions (0-20), Value proposition (
 Be honest — a mediocre call should score 40-60, not 70+.`;
 
     const response = await client.chat.completions.create({
-      model: MODEL,
+      model: resolveModel(settings.ollamaModel),
       max_tokens: 1500,
       messages: [{ role: 'user', content: analysisPrompt }],
     });

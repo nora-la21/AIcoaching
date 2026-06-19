@@ -15,6 +15,7 @@ import {
   CheckCircle,
   Layers,
   Sparkles,
+  Cpu,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import {
@@ -27,6 +28,7 @@ import {
   setActiveProfileId,
 } from '@/lib/storage';
 import { Settings, SettingsProfile } from '@/lib/types';
+import { OLLAMA_MODELS } from '@/lib/models';
 import GenerateProfileModal from '@/components/GenerateProfileModal';
 
 interface InputFieldProps {
@@ -598,6 +600,57 @@ export default function SettingsPage() {
                 Add
               </button>
             </div>
+          </div>
+
+          {/* Local AI Model */}
+          <div
+            className="rounded-xl p-6"
+            style={{ backgroundColor: '#16161f', border: '1px solid #2a2a3c' }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(99, 102, 241, 0.15)' }}
+              >
+                <Cpu size={15} style={{ color: '#6366f1' }} />
+              </div>
+              <h2 className="text-sm font-semibold" style={{ color: '#f1f5f9' }}>
+                Local AI Model
+              </h2>
+            </div>
+            <p className="text-xs mb-4" style={{ color: '#64748b' }}>
+              Only applies when running locally with Ollama. Ignored in production, where Groq is used instead.
+            </p>
+
+            <div className="grid grid-cols-1 gap-2">
+              {OLLAMA_MODELS.map((m) => {
+                const isActive = (settings.ollamaModel || 'llama3.2') === m.id;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => update('ollamaModel', m.id)}
+                    className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all select-none"
+                    style={{
+                      backgroundColor: isActive ? 'rgba(99, 102, 241, 0.1)' : '#0d0d14',
+                      border: `1px solid ${isActive ? '#6366f1' : '#2a2a3c'}`,
+                    }}
+                  >
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: isActive ? '#a5b4fc' : '#f1f5f9' }}>
+                        {m.label}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: '#64748b' }}>
+                        {m.description}
+                      </p>
+                    </div>
+                    {isActive && <CheckCircle size={16} style={{ color: '#6366f1', flexShrink: 0 }} />}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs mt-3" style={{ color: '#475569' }}>
+              Pull the model first: <code style={{ color: '#94a3b8' }}>ollama pull {settings.ollamaModel || 'llama3.2'}</code>
+            </p>
           </div>
 
           {/* About AI Coaching */}
